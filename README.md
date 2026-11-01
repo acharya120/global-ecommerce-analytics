@@ -28,12 +28,27 @@ Requires Node.js 20+.
 | | Demo Mode | Live Mode |
 |---|---|---|
 | Keys needed | none | depends on provider |
-| Enabled | always | only if `LIVE_MODE_ENABLED=true` on the server |
+| Enabled | always | when you paste at least one marketplace key (or the owner sets `LIVE_MODE_ENABLED=true`) |
 | Data | 31 synthetic listings, 8 marketplaces, mixed review-count formats | real data from authorised sources only |
 | Cost | ₹0 | ₹0 with free keys (Best Buy); paid providers stay off |
 | Reviews text for insights | synthetic samples | only if the source supplies it, otherwise "not enough review text" |
 
 Live Mode never fabricates data: a marketplace without an accessible, authorised source returns *Unavailable*. The app does **not** bypass CAPTCHAs or anti-bot protections and does no scraping inside serverless functions.
+
+## 2b. API connections (paste a key, it auto-connects)
+
+Open **API connections** in the app. Every marketplace has its own box. As soon as the required fields are filled, the app runs a small test search and shows **Connected** or **Failed** with the reason, then switches to Live Mode and re-runs your search.
+
+| Marketplace | Box asks for | Notes |
+|---|---|---|
+| Flipkart | Affiliate ID + token | Flipkart Affiliate search API; may not return review counts (then products appear under "Missing review counts") |
+| Best Buy | API key (free) | Prices, ratings and review counts |
+| eBay | App ID + Cert ID | Browse API; no review counts |
+| Amazon India/US, Walmart, Croma, Reliance Digital, Myntra, Ajio | Authorised feed URL (+ optional key) | No public key-based API is built in. Paste a partner/licensed feed returning JSON; use `{query}` in the URL for the search text |
+
+How keys are handled: they are sent in a POST body over HTTPS (never in the URL), used for that request, and never stored, cached or logged by the server. Results fetched with your keys are not put in the shared cache. "Remember keys on this device" (off by default) stores them in your browser's localStorage. Feed URLs must be public `https://` addresses (localhost and private networks are blocked). A DNS-rebinding-proof guard is not included.
+
+Not verified: the Flipkart, eBay, Best Buy and feed connectors follow public documentation but could not be tested against the live services from the build environment. If a box shows *Failed*, the message says why; send it to me and the mapping can be adjusted.
 
 ## 3. Architecture
 
@@ -53,7 +68,7 @@ services/marketplaceService.js
    └─ services/reviewAnalyticsService.js   rule-based themes (free) + optional OpenAI (off)
 lib/cache.js + lib/redis.js   in-memory cache, optional Upstash Redis via REST (no SDK)
 lib/config.js, usage.js, rateLimit.js   cost-control settings, API usage log, per-IP limits
-app/api/analytics (POST reviews[] → insights), app/api/health (non-secret settings + usage)
+app/api/connect (POST: test pasted credentials), app/api/analytics (POST reviews[] → insights), app/api/health (non-secret settings + usage)
 ```
 
 **Review-count rules.** Only *product review* counts are used (seller ratings / rating counts are ignored). Several listings or sellers inside one marketplace share a review population, so the **maximum** is used, not the sum. Different marketplaces are independent populations and are summed. A listing can set `reviewPopulationId` when two sources are known to share reviews. Products with no valid count are never treated as 0; they appear in a separate "Missing review counts" list.

@@ -33,7 +33,9 @@ async function searchOne(market, ctx) {
   }
   const adapter = adapters[market.id];
   if (!adapter) throw new AppError(503, 'UNAVAILABLE', 'No adapter registered for this marketplace.');
-  return withTimeout((signal) => adapter.search({ query, tokens, config, fetchImpl, signal }), config.requestTimeoutMs, market.name);
+  const credentials = ctx.credentials?.[market.id] ?? {};
+  if (!config.liveModeEnabled && !Object.keys(credentials).length) throw new AppError(503, 'UNAVAILABLE', `Not connected. Paste an API key for ${market.name} in the API connections panel.`);
+  return withTimeout((signal) => adapter.search({ query, tokens, config, fetchImpl, signal, credentials }), config.requestTimeoutMs, market.name);
 }
 
 const statusOf = (err) => (err?.code === 'UNAVAILABLE' ? 'unavailable' : err?.code === 'TIMEOUT' ? 'timeout' : err?.code === 'LIMIT' ? 'limit' : 'error');
@@ -43,12 +45,13 @@ export async function runSearch(params, deps = {}) {
   const config = deps.config ?? getConfig();
   const adapters = deps.adapters ?? ADAPTERS;
   const demo = params.mode === 'demo';
-  if (!demo && !config.liveModeEnabled) throw new AppError(403, 'LIVE_DISABLED', 'Live Mode is disabled. Set LIVE_MODE_ENABLED=true on the server to enable it.');
+  const credentials = params.credentials ?? {};
+  if (!demo && !config.liveModeEnabled && !Object.keys(credentials).length) throw new AppError(403, 'LIVE_DISABLED', 'Live Mode needs at least one marketplace API key (paste it in the API connections panel), or LIVE_MODE_ENABLED=true on the server.');
 
   const targets = MARKETPLACES.filter((m) => params.markets.includes(m.id));
   const tokens = normalizeKeywords(params.q);
   const started = Date.now();
-  const ctx = { demo, tokens, config, adapters, fetchImpl: deps.fetchImpl, query: params.q };
+  const ctx = { demo, tokens, config, adapters, fetchImpl: deps.fetchImpl, query: params.q, credentials };
 
   const settled = await Promise.allSettled(targets.map(async (m) => {
     const t0 = Date.now();
@@ -86,4 +89,21 @@ export async function runSearch(params, deps = {}) {
     tookMs: Date.now() - started,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/** Auto-connect check used by the API panel: one small test search with the pasted credentials. Never returns or logs the credentials. */
+export async function testConnection(marketId, credentials, deps = {}) {
+  const config = deps.config ?? getConfig();
+  const adapter = (deps.adapters ?? ADAPTERS)[marketId];
+  const market = MARKETPLACES.find((m) => m.id === marketId);
+  if (!adapter || !market) throw new AppError(400, 'VALIDATION', 'Unknown marketplace.');
+  try {
+    const raw = await withTimeout((signal) => adapter.search({ query: 'smartphone', tokens: ['smartphone'], config, fetchImpl: deps.fetchImpl, signal, credentials }), config.requestTimeoutMs, market.name);
+    const listings = (Array.isArray(raw) ? raw : []).map((x) => normalizeListing(x, marketId)).filter(Boolean);
+    const withReviews = listings.filter((l) => l.reviewCount != null).length;
+    return { ok: true, count: listings.length, withReviewCounts: withReviews,
+      message: `Connected. ${listings.length} product${listings.length === 1 ? '' : 's'} returned for a test search${listings.length && !withReviews ? ', but none include review counts, so they cannot be ranked by reviews' : ''}.` };
+  } catch (err) {
+    return { ok: false, code: err?.code ?? 'ERROR', message: sanitizeMessage(err?.message) };
+  }
 }

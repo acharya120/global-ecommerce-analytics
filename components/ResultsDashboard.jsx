@@ -29,12 +29,17 @@ export default function ResultsDashboard({ state, compare, onToggleCompare, onCl
     <div className="space-y-5">
       {data.isDemo && <p role="note" className="rounded-xl border border-saffron/60 bg-saffron/15 px-4 py-2.5 text-sm font-medium">DEMO DATA — these are sample listings for demonstration, not real marketplace information.</p>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[['Products found', totals.productsFound], ['Marketplaces searched', `${totals.marketplacesOk} of ${totals.marketplacesSearched} available`], ['Showing', `Top ${data.top}, ${SORT_LABEL[data.sort]}`], ['Last updated', new Date(data.generatedAt).toLocaleTimeString()]].map(([k, v]) => (
+        {[['Products found', totals.productsFound], ['Marketplaces responding', `${totals.marketplacesOk} of ${totals.marketplacesSearched} searched`], ['Showing', `Top ${data.top}, ${SORT_LABEL[data.sort]}`], ['Last updated', new Date(data.generatedAt).toLocaleTimeString()]].map(([k, v]) => (
           <div key={k} className="surface p-3"><p className="text-xs text-ink-soft dark:text-slate-400">{k}</p><p className="num text-base font-bold">{v}</p></div>
         ))}
       </div>
       {products.length === 0 ? (
-        <div className="surface p-8 text-center"><SearchX className="mx-auto mb-2 text-ink-soft" aria-hidden /><h2 className="font-semibold">No products match “{data.query}”</h2><p className="text-sm text-ink-soft dark:text-slate-400">Try a shorter name, remove price or rating filters, or select more marketplaces.</p></div>
+        <div className="surface p-8 text-center"><SearchX className="mx-auto mb-2 text-ink-soft" aria-hidden /><h2 className="font-semibold">No products match “{data.query}”</h2>
+          {data.isDemo
+            ? <><p className="mx-auto mt-1 max-w-md text-sm text-ink-soft dark:text-slate-400">Demo Mode only contains a small set of sample phones, so most searches return nothing. Try one of these, or connect a marketplace API key for real results.</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">{SUGGESTIONS.map((s) => <button key={s} onClick={() => onPick(s)} className="chip border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-night-line dark:hover:bg-night-line">{s}</button>)}</div></>
+            : <p className="text-sm text-ink-soft dark:text-slate-400">Nothing came back from the connected marketplaces. Check the availability list below, try a shorter name, or remove price and rating filters.</p>}
+        </div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2">{products.map((p) => <ProductCard key={p.key} product={p} maxReviews={maxReviews} selected={compare.includes(p.key)} onToggleCompare={onToggleCompare} sortLabel={SORT_LABEL[data.sort]} />)}</div>
       )}

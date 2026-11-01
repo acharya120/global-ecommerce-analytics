@@ -1,2 +1,2 @@
-import { unavailableAdapter } from './shared.js';
-export default unavailableAdapter('myntra', 'Myntra', 'Fashion marketplace with no public product API and no electronics catalogue.');
+import { feedAdapter } from './feedAdapter.js';
+export default feedAdapter("myntra", "Myntra", "INR");
