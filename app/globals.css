@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+body { @apply bg-paper text-ink antialiased; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+.dark body { @apply bg-night text-slate-100; }
+
+@layer components {
+  .surface { @apply rounded-2xl border border-slate-200 bg-paper-card shadow-sm transition-colors; }
+  .dark .surface { @apply border-night-line bg-night-card; }
+  .field { @apply rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-teal-brand focus:ring-2 focus:ring-teal-brand/30; }
+  .dark .field { @apply border-night-line bg-night text-slate-100; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-brand disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply bg-teal-brand text-white hover:bg-teal-700; }
+  .btn-ghost { @apply border border-slate-300 text-ink hover:bg-slate-100; }
+  .dark .btn-ghost { @apply border-night-line text-slate-100 hover:bg-night-line; }
+  .chip { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium; }
+  .num { font-variant-numeric: tabular-nums; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
